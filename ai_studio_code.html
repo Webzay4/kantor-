@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kantor Agent AI — Studio Animasi & Auto-Publish</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+
+  <!-- LAYAR LOGIN BOS -->
+  <div id="loginScreen" class="min-h-screen flex items-center justify-center p-4 hidden">
+    <form onsubmit="submitLogin(event)" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-sm w-full space-y-5 shadow-2xl">
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 mx-auto rounded-2xl bg-indigo-600 flex items-center justify-center text-3xl shadow-lg shadow-indigo-500/30">🏢</div>
+        <h1 class="text-xl font-bold text-white">Kantor Agent AI</h1>
+        <p class="text-xs text-slate-400">Masuk sebagai Direktur/Bos untuk menyetujui & mempublish konten AI</p>
+      </div>
+      <div>
+        <label class="block text-xs text-slate-400 mb-1.5">Password Bos</label>
+        <input id="loginPassword" type="password" required placeholder="Default: admin123" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500" />
+      </div>
+      <p id="loginError" class="text-xs text-rose-400 hidden"></p>
+      <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 font-semibold py-3 rounded-xl text-sm transition">
+        Masuk ke Kantor AI
+      </button>
+    </form>
+  </div>
+
+  <!-- APLIKASI UTAMA -->
+  <div id="mainApp" class="hidden">
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-xl shadow-lg shadow-indigo-500/30">🏢</div>
+          <div>
+            <h1 class="text-lg font-bold text-white">Kantor Agent AI</h1>
+            <p class="text-xs text-slate-400">Produksi Animasi 9:16 → Persetujuan Bos → YouTube, IG & TikTok</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5">
+          <div id="modeBadges" class="hidden xl:flex items-center gap-1.5 text-xs"></div>
+          <button onclick="openIntegrationsModal()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium px-3.5 py-2.5 rounded-xl transition">
+            🔑 Koneksi API & Sosmed
+          </button>
+          <button onclick="triggerAgentNow()" class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 flex items-center gap-2">
+            <span>⚡</span> Buat Video Sekarang
+          </button>
+          <button onclick="logout()" title="Keluar" class="bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-400 text-xs px-3 py-2.5 rounded-xl">
+            Keluar
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+      <!-- Peringatan password default -->
+      <div id="defaultPwBanner" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs px-4 py-3 rounded-2xl flex items-center justify-between gap-3">
+        <span>⚠️ Anda masih menggunakan password default <b>admin123</b>. Segera ubah demi keamanan web publik Anda.</span>
+        <button onclick="openIntegrationsModal()" class="underline font-semibold shrink-0">Ubah Sekarang</button>
+      </div>
+
+      <!-- Statistik -->
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Menunggu Persetujuan Anda</p>
+          <p id="statPending" class="text-3xl font-bold text-amber-400 mt-1">0</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Layak & Terpublish</p>
+          <p id="statApproved" class="text-3xl font-bold text-emerald-400 mt-1">0</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Ditolak / Revisi</p>
+          <p id="statRejected" class="text-3xl font-bold text-rose-400 mt-1">0</p>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+          <p class="text-xs text-slate-400">Sedang Diproses / Upload</p>
+          <p id="statGenerating" class="text-3xl font-bold text-sky-400 mt-1">0</p>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="space-y-6">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <h2 class="font-semibold text-base mb-4">⚙️ Pengaturan Kantor AI</h2>
+            <form id="settingsForm" onsubmit="saveSettings(event)" class="space-y-3 text-sm">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Topik / Niche Konten</label>
+                <textarea id="company_topic" rows="2" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500"></textarea>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Gaya Animasi AI</label>
+                <input id="animation_style" type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1">Jadwal Auto-Pilot (Menit)</label>
+                  <input id="schedule_minutes" type="number" min="1" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100" />
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-400 mb-1">Model Replicate</label>
+                  <input id="replicate_model" type="text" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100" />
+                </div>
+              </div>
+              <label class="flex items-center gap-2.5 pt-1 cursor-pointer">
+                <input id="auto_pilot_enabled" type="checkbox" class="w-4 h-4 accent-indigo-600 rounded" />
+                <span class="text-xs text-slate-300">Aktifkan Produksi Otomatis (Auto-Pilot)</span>
+              </label>
+              <button type="submit" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-medium py-2 rounded-xl transition">
+                Simpan Pengaturan
+              </button>
+            </form>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+            <h2 class="font-semibold text-base mb-3">🤖 Aktivitas Pegawai AI</h2>
+            <div id="agentLogs" class="space-y-2 max-h-80 overflow-y-auto pr-1 text-xs"></div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-2 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 class="font-semibold text-lg">🎬 Meja Persetujuan & Distribusi</h2>
+            <div class="flex bg-slate-900 border border-slate-800 rounded-xl p-1 text-xs">
+              <button onclick="setFilter('pending_approval')" id="tab-pending_approval" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium">Menunggu Review</button>
+              <button onclick="setFilter('approved')" id="tab-approved" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Layak</button>
+              <button onclick="setFilter('rejected')" id="tab-rejected" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Ditolak</button>
+              <button onclick="setFilter('all')" id="tab-all" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">Semua</button>
+            </div>
+          </div>
+
+          <div id="videoList" class="space-y-4"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL PENOLAKAN & REVISI -->
+  <div id="rejectModal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 space-y-4">
+      <h3 class="text-lg font-bold text-rose-400">❌ Konten Tidak Layak</h3>
+      <p class="text-xs text-slate-400">Tuliskan catatan perbaikan agar Agent AI membuat ulang versi lebih baik:</p>
+      <input type="hidden" id="rejectVideoId" />
+      <textarea id="rejectFeedback" rows="3" placeholder="Contoh: Warna terlalu gelap, ubah jadi kantor startup cerah..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-rose-500"></textarea>
+      <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+        <input id="autoRevise" type="checkbox" checked class="w-4 h-4 accent-indigo-600" />
+        Perintahkan Agent AI langsung membuat ulang versi revisi otomatis
+      </label>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeRejectModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-sm hover:bg-slate-700">Batal</button>
+        <button onclick="submitReject()" class="px-4 py-2 rounded-xl bg-rose-600 text-sm font-semibold hover:bg-rose-500">Tolak Konten</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL KONEKSI API & SOSMED (LANGSUNG DI WEB) -->
+  <div id="integrationsModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm hidden items-center justify-center z-50 p-4">
+    <form onsubmit="saveIntegrations(event)" class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-white">🔑 Koneksi API AI & Media Sosial</h3>
+          <p class="text-xs text-slate-400">Kosongkan kolom secret jika tidak ingin mengubah token yang sudah tersimpan.</p>
+        </div>
+        <button type="button" onclick="closeIntegrationsModal()" class="text-slate-400 hover:text-white text-lg">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+        <div>
+          <label class="text-slate-400 block mb-1">Password Baru Bos</label>
+          <input id="cfg_BOSS_PASSWORD" type="password" placeholder="Biarkan kosong jika tetap" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">URL Publik Web (Otomatis/Custom)</label>
+          <input id="cfg_PUBLIC_BASE_URL" type="text" placeholder="https://domain-anda.com" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">Gemini API Key (Skrip AI)</label>
+          <input id="cfg_GEMINI_API_KEY" type="password" placeholder="AIza..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">Replicate API Token (Video AI MP4)</label>
+          <input id="cfg_REPLICATE_API_TOKEN" type="password" placeholder="r8_..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">Telegram Bot Token</label>
+          <input id="cfg_TELEGRAM_BOT_TOKEN" type="password" placeholder="12345:ABC..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+        <div>
+          <label class="text-slate-400 block mb-1">Telegram Chat ID</label>
+          <input id="cfg_TELEGRAM_CHAT_ID" type="text" placeholder="123456789" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-3">
+        <h4 class="text-xs font-bold text-red-400 mb-2">▶️ YouTube Shorts (OAuth2)</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <input id="cfg_YOUTUBE_CLIENT_ID" type="password" placeholder="YouTube Client ID" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <input id="cfg_YOUTUBE_CLIENT_SECRET" type="password" placeholder="YouTube Client Secret" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <input id="cfg_YOUTUBE_REFRESH_TOKEN" type="password" placeholder="YouTube Refresh Token" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <select id="cfg_YOUTUBE_PRIVACY_STATUS" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
+            <option value="public">Privacy: Public</option>
+            <option value="unlisted">Privacy: Unlisted</option>
+            <option value="private">Privacy: Private</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-3">
+        <h4 class="text-xs font-bold text-pink-400 mb-2">📸 Instagram Reels (Meta Graph API)</h4>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+          <input id="cfg_IG_USER_ID" type="text" placeholder="IG User ID" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <input id="cfg_IG_ACCESS_TOKEN" type="password" placeholder="IG Access Token" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <select id="cfg_IG_GRAPH_HOST" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
+            <option value="graph.facebook.com">graph.facebook.com</option>
+            <option value="graph.instagram.com">graph.instagram.com</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="border-t border-slate-800 pt-3">
+        <h4 class="text-xs font-bold text-cyan-400 mb-2">🎵 TikTok (Content Posting API v2)</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <input id="cfg_TIKTOK_ACCESS_TOKEN" type="password" placeholder="TikTok Access Token" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <input id="cfg_TIKTOK_REFRESH_TOKEN" type="password" placeholder="TikTok Refresh Token (Opsional)" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white" />
+          <select id="cfg_TIKTOK_POST_MODE" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
+            <option value="draft">Mode: Draft / Inbox TikTok</option>
+            <option value="direct">Mode: Direct Post ke Profil</option>
+          </select>
+          <select id="cfg_TIKTOK_PRIVACY_LEVEL" class="bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white">
+            <option value="SELF_ONLY">Privacy: Self Only (Privat)</option>
+            <option value="PUBLIC_TO_EVERYONE">Privacy: Public (Butuh Audit)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-slate-800">
+        <button type="button" onclick="closeIntegrationsModal()" class="px-4 py-2 rounded-xl bg-slate-800 text-xs hover:bg-slate-700">Tutup</button>
+        <button type="submit" class="px-5 py-2 rounded-xl bg-indigo-600 text-xs font-semibold hover:bg-indigo-500">Simpan Koneksi</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    let currentFilter = 'pending_approval';
+    let cachedVideos = [];
+    let pollTimer = null;
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    async function checkAuth() {
+      const res = await fetch('/api/auth/status');
+      const data = await res.json();
+      if (!data.authenticated) {
+        document.getElementById('loginScreen').classList.remove('hidden');
+        document.getElementById('mainApp').classList.add('hidden');
+      } else {
+        document.getElementById('loginScreen').classList.add('hidden');
+        document.getElementById('mainApp').classList.remove('hidden');
+        document.getElementById('defaultPwBanner').classList.toggle('hidden', !data.using_default_password);
+        startApp();
+      }
+    }
+
+    async function submitLogin(e) {
+      e.preventDefault();
+      const pw = document.getElementById('loginPassword').value;
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw })
+      });
+      if (res.ok) {
+        document.getElementById('loginError').classList.add('hidden');
+        checkAuth();
+      } else {
+        const err = document.getElementById('loginError');
+        err.textContent = 'Password salah. Coba lagi.';
+        err.classList.remove('hidden');
+      }
+    }
+
+    async function logout() {
+      await fetch('/api/logout', { method: 'POST' });
+      if (pollTimer) clearInterval(pollTimer);
+      checkAuth();
+    }
+
+    function startApp() {
+      loadSettings();
+      loadVideos();
+      loadLogs();
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(() => { loadVideos(); loadLogs(); }, 4000);
+    }
+
+    async function loadSettings() {
+      const res = await fetch('/api/settings');
+      if (res.status === 401) return checkAuth();
+      const data = await res.json();
+      const s = data.settings;
+
+      document.getElementById('company_topic').value = s.company_topic;
+      document.getElementById('animation_style').value = s.animation_style;
+      document.getElementById('schedule_minutes').value = s.schedule_minutes;
+      document.getElementById('replicate_model').value = s.replicate_model;
+      document.getElementById('auto_pilot_enabled').checked = s.auto_pilot_enabled === 'true';
+
+      const ns = data.non_secret_values;
+      document.getElementById('cfg_PUBLIC_BASE_URL').value = ns.PUBLIC_BASE_URL;
+      document.getElementById('cfg_YOUTUBE_PRIVACY_STATUS').value = ns.YOUTUBE_PRIVACY_STATUS;
+      document.getElementById('cfg_IG_USER_ID').value = ns.IG_USER_ID;
+      document.getElementById('cfg_IG_GRAPH_HOST').value = ns.IG_GRAPH_HOST;
+      document.getElementById('cfg_TIKTOK_POST_MODE').value = ns.TIKTOK_POST_MODE;
+      document.getElementById('cfg_TIKTOK_PRIVACY_LEVEL').value = ns.TIKTOK_PRIVACY_LEVEL;
+      document.getElementById('cfg_TELEGRAM_CHAT_ID').value = ns.TELEGRAM_CHAT_ID;
+
+      const pill = (ok, label) => ok
+        ? `<span class="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">${label}: Siap</span>`
+        : `<span class="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400">${label}: Demo</span>`;
+
+      document.getElementById('modeBadges').innerHTML = [
+        pill(data.integrations.replicate, 'Video AI'),
+        pill(data.integrations.youtube, 'YouTube'),
+        pill(data.integrations.instagram, 'IG Reels'),
+        pill(data.integrations.tiktok, 'TikTok'),
+      ].join('');
+    }
+
+    async function saveSettings(e) {
+      e.preventDefault();
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          company_topic: document.getElementById('company_topic').value,
+          animation_style: document.getElementById('animation_style').value,
+          schedule_minutes: parseInt(document.getElementById('schedule_minutes').value || '60', 10),
+          replicate_model: document.getElementById('replicate_model').value,
+          auto_pilot_enabled: document.getElementById('auto_pilot_enabled').checked
+        })
+      });
+      alert('Pengaturan berhasil disimpan!');
+      loadLogs();
+    }
+
+    function openIntegrationsModal() {
+      document.getElementById('integrationsModal').classList.remove('hidden');
+      document.getElementById('integrationsModal').classList.add('flex');
+    }
+
+    function closeIntegrationsModal() {
+      document.getElementById('integrationsModal').classList.add('hidden');
+      document.getElementById('integrationsModal').classList.remove('flex');
+    }
+
+    async function saveIntegrations(e) {
+      e.preventDefault();
+      const keys = [
+        'BOSS_PASSWORD', 'PUBLIC_BASE_URL', 'GEMINI_API_KEY', 'REPLICATE_API_TOKEN',
+        'TELEGRAM_BOT_TOKEN', 'TELEGRAM_CHAT_ID',
+        'YOUTUBE_CLIENT_ID', 'YOUTUBE_CLIENT_SECRET', 'YOUTUBE_REFRESH_TOKEN', 'YOUTUBE_PRIVACY_STATUS',
+        'IG_USER_ID', 'IG_ACCESS_TOKEN', 'IG_GRAPH_HOST',
+        'TIKTOK_ACCESS_TOKEN', 'TIKTOK_REFRESH_TOKEN', 'TIKTOK_POST_MODE', 'TIKTOK_PRIVACY_LEVEL'
+      ];
+      const values = {};
+      keys.forEach(k => {
+        const el = document.getElementById('cfg_' + k);
+        if (el && el.value.trim()) values[k] = el.value.trim();
+      });
+
+      await fetch('/api/integrations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ values })
+      });
+      closeIntegrationsModal();
+      checkAuth();
+      loadLogs();
+      alert('Koneksi API & Sosmed berhasil diperbarui!');
+    }
+
+    async function triggerAgentNow() {
+      await fetch('/api/videos/trigger', { method: 'POST' });
+      await loadVideos();
+      await loadLogs();
+    }
+
+    function setFilter(f) {
+      currentFilter = f;
+      ['pending_approval', 'approved', 'rejected', 'all'].forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        el.className = t === f
+          ? 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-medium'
+          : 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white';
+      });
+      renderVideos();
+    }
+
+    async function loadVideos() {
+      const res = await fetch('/api/videos');
+      if (res.status === 401) return;
+      const data = await res.json();
+      cachedVideos = data.videos;
+      document.getElementById('statPending').textContent = data.stats.pending;
+      document.getElementById('statApproved').textContent = data.stats.approved;
+      document.getElementById('statRejected').textContent = data.stats.rejected;
+      document.getElementById('statGenerating').textContent = data.stats.generating;
+      renderVideos();
+    }
+
+    function renderPublishResults(raw) {
+      if (!raw) return '';
+      try {
+        const obj = JSON.parse(raw);
+        const rows = Object.entries(obj).map(([plat, info]) => {
+          const icon = { youtube: '▶️ YouTube', instagram: '📸 IG Reels', tiktok: '🎵 TikTok' }[plat] || plat;
+          const color = info.ok ? 'text-emerald-300 border-emerald-500/30 bg-emerald-950/40' : 'text-amber-300 border-amber-500/30 bg-amber-950/30';
+          const link = info.url ? ` <a href="${info.url}" target="_blank" class="underline text-sky-400">Lihat Video</a>` : '';
+          return `<div class="p-2 rounded-lg border ${color} text-xs"><b>${icon}:</b> ${escapeHtml(info.message)}${link}</div>`;
+        });
+        return `<div class="space-y-1.5 pt-1">${rows.join('')}</div>`;
+      } catch { return ''; }
+    }
+
+    function renderVideos() {
+      const container = document.getElementById('videoList');
+      const filtered = cachedVideos.filter(v => {
+        if (currentFilter === 'all') return true;
+        if (currentFilter === 'pending_approval') return ['pending_approval', 'generating', 'publishing'].includes(v.status);
+        return v.status === currentFilter;
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="bg-slate-900 border border-slate-800 border-dashed rounded-2xl p-10 text-center text-slate-500 text-sm">Belum ada konten di kategori ini. Klik <b>"⚡ Buat Video Sekarang"</b>.</div>`;
+        return;
+      }
+
+      container.innerHTML = filtered.map(v => {
+        const statusBadge = {
+          generating: '<span class="px-2.5 py-1 rounded-full text-xs bg-sky-500/20 text-sky-300 animate-pulse">⏳ Sedang Dikerjakan AI...</span>',
+          pending_approval: '<span class="px-2.5 py-1 rounded-full text-xs bg-amber-500/20 text-amber-300">🔔 Menunggu Persetujuan Bos</span>',
+          publishing: '<span class="px-2.5 py-1 rounded-full text-xs bg-indigo-500/20 text-indigo-300 animate-pulse">🚀 Mengupload ke Sosmed...</span>',
+          approved: '<span class="px-2.5 py-1 rounded-full text-xs bg-emerald-500/20 text-emerald-300">✅ Layak & Dipublikasikan</span>',
+          rejected: '<span class="px-2.5 py-1 rounded-full text-xs bg-rose-500/20 text-rose-300">❌ Tidak Layak</span>'
+        }[v.status] || '';
+
+        let mediaHtml = '<div class="aspect-[9/16] max-h-96 mx-auto bg-slate-950 rounded-xl flex items-center justify-center text-slate-500 text-xs">Merender 9:16...</div>';
+        if (v.media_url) {
+          mediaHtml = v.media_type === 'mp4'
+            ? `<video src="${v.media_url}" controls loop class="w-full max-h-96 rounded-xl bg-black aspect-[9/16] object-cover mx-auto"></video>`
+            : `<img src="${v.media_url}" alt="Animasi AI" class="w-full max-h-96 rounded-xl bg-black aspect-[9/16] object-contain mx-auto" />`;
+        }
+
+        const actionButtons = v.status === 'pending_approval' ? `
+          <div class="space-y-3 pt-2 border-t border-slate-800">
+            <div class="flex flex-wrap items-center gap-3 text-xs text-slate-300">
+              <span class="text-slate-400">Publish ke:</span>
+              <label class="flex items-center gap-1.5 cursor-pointer bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                <input type="checkbox" id="plat-yt-${v.id}" checked class="accent-red-500" /> ▶️ YouTube Shorts
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                <input type="checkbox" id="plat-ig-${v.id}" checked class="accent-pink-500" /> 📸 IG Reels
+              </label>
+              <label class="flex items-center gap-1.5 cursor-pointer bg-slate-950 px-2.5 py-1.5 rounded-lg border border-slate-800">
+                <input type="checkbox" id="plat-tt-${v.id}" checked class="accent-cyan-400" /> 🎵 TikTok
+              </label>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="approveVideo(${v.id})" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition">
+                ✅ LAYAK & Publish Otomatis
+              </button>
+              <button onclick="openRejectModal(${v.id})" class="flex-1 bg-rose-600/20 hover:bg-rose-600 border border-rose-500/40 text-rose-300 hover:text-white font-semibold py-2.5 px-4 rounded-xl text-sm transition">
+                ❌ TIDAK LAYAK (Revisi)
+              </button>
+            </div>
+          </div>` : '';
+
+        const downloadBtn = v.media_url ? `<a href="${v.media_url}" download class="inline-block text-xs text-indigo-400 hover:underline">⬇️ Unduh File</a>` : '';
+        const feedbackBox = v.feedback ? `<div class="p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/30 text-xs text-rose-200"><b>Catatan Revisi Bos:</b> ${escapeHtml(v.feedback)}</div>` : '';
+
+        return `
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 grid grid-cols-1 md:grid-cols-5 gap-5">
+            <div class="md:col-span-2">${mediaHtml}</div>
+            <div class="md:col-span-3 flex flex-col justify-between space-y-3">
+              <div class="space-y-2">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                  <span class="text-xs text-slate-500">#${v.id} • Versi ${v.version} • ${v.created_at}</span>
+                  ${statusBadge}
+                </div>
+                <h3 class="text-base font-bold text-white">${escapeHtml(v.title)}</h3>
+                <p class="text-sm text-slate-300 bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                  <span class="text-xs text-slate-500 block mb-0.5">Skrip / Caption:</span>
+                  "${escapeHtml(v.script)}"
+                </p>
+                <p class="text-xs text-slate-400"><b>Visual Prompt:</b> ${escapeHtml(v.visual_prompt)}</p>
+                ${feedbackBox}
+                ${renderPublishResults(v.publish_results)}
+                ${downloadBtn}
+              </div>
+              ${actionButtons}
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function approveVideo(id) {
+      const platforms = [];
+      if (document.getElementById(`plat-yt-${id}`)?.checked) platforms.push('youtube');
+      if (document.getElementById(`plat-ig-${id}`)?.checked) platforms.push('instagram');
+      if (document.getElementById(`plat-tt-${id}`)?.checked) platforms.push('tiktok');
+      if (platforms.length === 0) return alert('Pilih minimal 1 platform tujuan.');
+
+      await fetch(`/api/videos/${id}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platforms })
+      });
+      await loadVideos();
+      await loadLogs();
+    }
+
+    function openRejectModal(id) {
+      document.getElementById('rejectVideoId').value = id;
+      document.getElementById('rejectFeedback').value = '';
+      document.getElementById('rejectModal').classList.remove('hidden');
+      document.getElementById('rejectModal').classList.add('flex');
+    }
+
+    function closeRejectModal() {
+      document.getElementById('rejectModal').classList.add('hidden');
+      document.getElementById('rejectModal').classList.remove('flex');
+    }
+
+    async function submitReject() {
+      const id = document.getElementById('rejectVideoId').value;
+      const feedback = document.getElementById('rejectFeedback').value.trim();
+      const autoRevise = document.getElementById('autoRevise').checked;
+      if (!feedback) return alert('Mohon isi catatan revisi terlebih dahulu.');
+
+      await fetch(`/api/videos/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback, auto_revise: autoRevise })
+      });
+      closeRejectModal();
+      await loadVideos();
+      await loadLogs();
+    }
+
+    async function loadLogs() {
+      const res = await fetch('/api/logs');
+      if (res.status === 401) return;
+      const data = await res.json();
+      document.getElementById('agentLogs').innerHTML = data.logs.map(l => `
+        <div class="p-2 rounded-lg bg-slate-950 border border-slate-800/80">
+          <div class="flex justify-between text-[11px] text-slate-500">
+            <span class="font-semibold text-indigo-400">${escapeHtml(l.agent_name)}</span>
+            <span>${l.created_at}</span>
+          </div>
+          <p class="text-slate-300 mt-0.5">${escapeHtml(l.message)}</p>
+        </div>
+      `).join('');
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>

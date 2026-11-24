@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: kantor-agent-ai
+    runtime: docker
+    plan: free
+    envVars:
+      - key: BOSS_PASSWORD
+        value: admin123
